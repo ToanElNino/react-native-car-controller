@@ -36,12 +36,10 @@ public class MainActivity extends AppCompatActivity {
     private static final int REQUEST_ENABLE_BLUETOOTH = 1;
     private static final int PERMISSION_REQUEST_CODE = 2;
     private static final int MY_PERMISSIONS_REQUEST_RECORD_AUDIO = 3;
-    private static final int REQUEST_CODE_SPEECH_INPUT = 4;
     private static final Character ACTION_UP = '1';
     private static final Character ACTION_DOWN = '2';
     private static final Character ACTION_LEFT = '3';
     private static final Character ACTION_RIGHT = '4';
-    private static final Character ACTION_TRACK = '5';
 
 
     private BluetoothAdapter bluetoothAdapter = null;
@@ -54,15 +52,11 @@ public class MainActivity extends AppCompatActivity {
     private OutputStream outputStream;
     private boolean isConnected = false;
 
-    private TextView tv_Speech_to_text;
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
-        tv_Speech_to_text = findViewById(R.id.micText);
 
         // Check if Bluetooth is supported on the device
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
@@ -71,14 +65,14 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "Bluetooth not supported on this device", Toast.LENGTH_SHORT).show();
             return;
         }
-        enableRecordAudio();
 
 
         // Request Bluetooth permission if not granted
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED ||
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED ||
                 ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.BLUETOOTH, Manifest.permission.BLUETOOTH_ADMIN}, PERMISSION_REQUEST_CODE);
         }
+        enableBluetooth();
         findViewById(R.id.btnConnect).setOnClickListener(
                 new View.OnClickListener() {
                     @Override
@@ -93,6 +87,7 @@ public class MainActivity extends AppCompatActivity {
                 new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {
+                        Log.d("CONTROL", "UP");
                         sendData(ACTION_UP);
                     }
                 }
@@ -102,6 +97,7 @@ public class MainActivity extends AppCompatActivity {
                 new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {
+                        Log.d("CONTROL", "DOWN");
                         sendData(ACTION_DOWN);
                     }
                 }
@@ -111,6 +107,7 @@ public class MainActivity extends AppCompatActivity {
                 new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {
+                        Log.d("CONTROL", "LEFT");
                         sendData(ACTION_LEFT);
                     }
                 }
@@ -120,63 +117,38 @@ public class MainActivity extends AppCompatActivity {
                 new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {
+                        Log.d("CONTROL", "RIGHT");
                         sendData(ACTION_RIGHT);
                     }
                 }
         );
-
-        findViewById(R.id.track).setOnClickListener(
-                new View.OnClickListener() {
-                    @Override
-                    public void onClick(View view) {
-                        sendData(ACTION_TRACK);
-                    }
-                }
-        );
-
-        findViewById(R.id.mic).setOnClickListener(
-                new View.OnClickListener() {
-                    @Override
-                    public void onClick(View view) {
-                        Intent intent
-                                = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-                        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-                        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE,
-                                Locale.getDefault());
-                        intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak to text");
-
-                        try {
-                            startActivityForResult(intent, REQUEST_CODE_SPEECH_INPUT);
-                        } catch (Exception e) {
-                            Toast
-                                    .makeText(MainActivity.this, " " + e.getMessage(),
-                                            Toast.LENGTH_SHORT)
-                                    .show();
-                        }
-                    }
-                }
-        );
-
     }
 
-    private void enableRecordAudio() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
-                != PackageManager.PERMISSION_GRANTED) {
-            // Permission is not granted
-            // Request permission
-            ActivityCompat.requestPermissions(this,
-                    new String[]{Manifest.permission.RECORD_AUDIO},
-                    MY_PERMISSIONS_REQUEST_RECORD_AUDIO);
-        } else {
-            // Permission has already been granted
-            Log.d(TAG, "Record Audio permission have been granted");
-        }
-    }
 
     private void enableBluetooth() {
         // Check if Bluetooth is enabled, and if not, request to enable it
-        if (!bluetoothAdapter.isEnabled()) {
+        //if (!bluetoothAdapter.isEnabled()) {
+            //Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+                // Permission is not granted
+                // Request permission
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    ActivityCompat.requestPermissions(this,
+                            new String[]{Manifest.permission.BLUETOOTH_CONNECT},
+                            REQUEST_ENABLE_BLUETOOTH);
+                }
+//                return;
+           // }
+            //startActivityForResult(enableBtIntent, REQUEST_ENABLE_BLUETOOTH);
+        //} else {
+            //connectToBluetoothDevice();
+        }
+        connectToBluetoothDevice();
+    }
+
+    private void connectToBluetoothDevice() {
+        // Get a set of bonded (paired) devices
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
             Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
                 // Permission is not granted
@@ -189,22 +161,13 @@ public class MainActivity extends AppCompatActivity {
 //                return;
             }
             startActivityForResult(enableBtIntent, REQUEST_ENABLE_BLUETOOTH);
-        } else {
-            connectToBluetoothDevice();
-        }
-    }
-
-    private void connectToBluetoothDevice() {
-        // Get a set of bonded (paired) devices
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-
             return;
         }
         Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
         if (pairedDevices.size() > 0) {
-            // Loop through the paired devices to find the HC-05 module
+            // Loop through the paired devices to find the HC-06 module
             for (BluetoothDevice device : pairedDevices) {
-                if (device.getName().equals("HC-05")) {
+                if (device.getName().equals("HC-06")) {
                     try {
                         // Create a BluetoothSocket for the device using the UUID
 
@@ -219,9 +182,9 @@ public class MainActivity extends AppCompatActivity {
                         inputStream = bluetoothSocket.getInputStream();
                         outputStream = bluetoothSocket.getOutputStream();
 
-                        Log.d(TAG, "Connected to HC-05");
+                        Log.d(TAG, "Connected to HC-06");
                         isConnected = true;
-                        Toast.makeText(this, "Connected to HC-05", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "Connected to HC-06", Toast.LENGTH_SHORT).show();
                         TextView status = (TextView) findViewById(R.id.tvStatus);
                         status.setText("Connected");
                         status.setTextColor(getResources().getColor(R.color.green));
@@ -229,8 +192,8 @@ public class MainActivity extends AppCompatActivity {
                         // Perform read and write operations with the BluetoothSocket
 
                     } catch (IOException e) {
-                        Log.e(TAG, "Error occurred while connecting to HC-05: " + e.getMessage());
-                        Toast.makeText(this, "Error occurred while connecting to HC-05: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                        Log.e(TAG, "Error occurred while connecting to HC-06: " + e.getMessage());
+                        Toast.makeText(this, "Error occurred while connecting to HC-06: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                     }
                     break;
                 }
@@ -247,23 +210,7 @@ public class MainActivity extends AppCompatActivity {
                 enableBluetooth();
             } else {
                 Log.e(TAG, "Bluetooth permission denied");
-//                Toast.makeText(this, "Bluetooth permission denied", Toast.LENGTH_SHORT).show();
-
-            }
-        }
-
-        if (requestCode == MY_PERMISSIONS_REQUEST_RECORD_AUDIO) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // Permission has been granted
-                Log.e(TAG, "Bluetooth permission accepted");
-                mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-                mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
-                mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
-                mediaRecorder.setOutputFile("/dev/null");
-
-            } else {
-                // Permission has been denied
-                Log.e(TAG, "Audio Record permission denied");
+                Toast.makeText(this, "Bluetooth permission denied", Toast.LENGTH_SHORT).show();
             }
         }
         enableBluetooth();
@@ -276,36 +223,6 @@ public class MainActivity extends AppCompatActivity {
                 outputStream.flush();
             } catch (IOException e) {
                 e.printStackTrace();
-            }
-        }
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_CODE_SPEECH_INPUT) {
-            if (resultCode == RESULT_OK && data != null) {
-                ArrayList<String> result = data.getStringArrayListExtra(
-                        RecognizerIntent.EXTRA_RESULTS);
-                String text = Objects.requireNonNull(result).get(0);
-                Log.d(TAG, "Text: " + text);
-                tv_Speech_to_text.setText(text);
-                if (text.contains("tiến") || text.contains("Tiến")) {
-                    sendData(ACTION_UP);
-                    Log.d(TAG, "UP");
-                } else if (text.contains("lùi") || text.contains("Lùi")) {
-                    sendData(ACTION_DOWN);
-                    Log.d(TAG, "down");
-                } else if (text.contains("trái") || text.contains("Trái")) {
-                    sendData(ACTION_LEFT);
-                    Log.d(TAG, "left");
-                } else if (text.contains("phải") || text.contains("Phải")) {
-                    sendData(ACTION_RIGHT);
-                    Log.d(TAG, "right");
-                } else if (text.contains("dò") || text.contains("Dò")) {
-                    sendData(ACTION_TRACK);
-                    Log.d(TAG, "track");
-                }
             }
         }
     }
